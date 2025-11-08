@@ -1,0 +1,95 @@
+# =============================================================================
+# Proxmox Connection Configuration
+# =============================================================================
+# Copy this file to terraform.tfvars or cred.auto.tfvars and fill in your values
+
+proxmox_api_url      = "https://192.168.100.10:8006/api2/json"
+proxmox_api_token_id = "terraform-prov@pve!mytoken"
+proxmox_api_token    = "your-api-token-secret-here"
+proxmox_tls_insecure = true  # Set to false if using valid SSL certificate
+proxmox_debug        = false # Set to true for troubleshooting
+
+# =============================================================================
+# Infrastructure Configuration
+# =============================================================================
+
+target_node           = "pve"
+template_name         = "ubuntu-cloud-template"
+ssh_public_key_path   = "~/.ssh/homelab.pub"
+environment           = "homelab"
+project_name          = "homelab-from-hell"
+
+# =============================================================================
+# VM Default Overrides (optional)
+# =============================================================================
+# Uncomment and modify to override defaults
+
+# vm_defaults = {
+#   memory      = 2048
+#   cores       = 2
+#   sockets     = 1
+#   cpu_type    = "x86-64-v2-AES"
+#   disk_size   = "32G"
+#   storage     = "local-lvm"
+#   ci_storage  = "local"
+#   bridge      = "vmbr0"
+#   network_tag = 0
+#   vm_state    = "running"
+#   onboot      = true
+#   bios        = "ovmf"
+#   agent       = 1
+#   scsihw      = "virtio-scsi-single"
+# }
+
+# =============================================================================
+# VM Instances Configuration
+# =============================================================================
+
+vm_configs = {
+  "vm-1" = {
+    vm_id       = 102
+    name        = "master-node-1"
+    memory      = 4096
+    cores       = 4
+    disk_size   = "50G"
+    vm_state    = "running"
+    onboot      = true
+    startup     = "order=2"
+    ipconfig    = "ip=dhcp"
+    ciuser      = "ubuntu"
+    cipassword  = "changeme123"
+    bridge      = "vmbr0"
+    network_tag = 0
+    tags        = ["kubernetes", "master"]
+    description = "Kubernetes Master Node"
+  }
+  
+  # Example with static IP:
+  # "vm-2" = {
+  #   vm_id       = 103
+  #   name        = "worker-node-1"
+  #   memory      = 8192
+  #   cores       = 4
+  #   disk_size   = "100G"
+  #   ipconfig    = "ip=192.168.100.101/24,gw=192.168.100.1"
+  #   ciuser      = "ubuntu"
+  #   cipassword  = "changeme123"
+  #   tags        = ["kubernetes", "worker"]
+  #   description = "Kubernetes Worker Node"
+  # }
+  
+  # Example with custom storage:
+  # "vm-3" = {
+  #   vm_id       = 104
+  #   name        = "database-server"
+  #   memory      = 16384
+  #   cores       = 8
+  #   disk_size   = "200G"
+  #   storage     = "local-zfs"  # Override default storage
+  #   ipconfig    = "ip=192.168.100.102/24,gw=192.168.100.1"
+  #   ciuser      = "dbadmin"
+  #   cipassword  = "changeme123"
+  #   tags        = ["database", "production"]
+  #   description = "PostgreSQL Database Server"
+  # }
+}
