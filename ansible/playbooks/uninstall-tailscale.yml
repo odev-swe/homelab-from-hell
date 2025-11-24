@@ -1,0 +1,212 @@
+---
+# ==============================================================================
+# Ansible Playbook: Uninstall Tailscale
+# ==============================================================================
+#
+# Description:
+#   This playbook removes Tailscale from target hosts and cleans up
+#   all configuration files.
+#
+# Usage:
+#   ansible-playbook playbooks/uninstall-tailscale.yml
+#
+#   # With confirmation prompt
+#   ansible-playbook playbooks/uninstall-tailscale.yml \
+#     --extra-vars "confirm_uninstall=yes"
+#
+# ==============================================================================
+
+- name: Uninstall Tailscale VPN
+  hosts: kubernetes
+  become: true
+  gather_facts: true
+
+  vars:
+    confirm_uninstall: false
+    remove_config: true
+
+  tasks:
+    # ==========================================================================
+    # Confirmation
+    # ==========================================================================
+
+    - name: Confirm uninstallation
+      ansible.builtin.pause:
+        prompt: |
+          
+          ⚠️  WARNING: This will remove Tailscale from {{ inventory_hostname }}
+          
+          This action will:
+            • Stop the Tailscale service
+            • Disconnect from your Tailnet
+            • Remove Tailscale packages
+            • Delete configuration files (if remove_config=true)
+          
+          Press CTRL+C to abort, or ENTER to continue
+      when: not confirm_uninstall | bool
+      tags: [always]
+
+    # ==========================================================================
+    # Pre-removal Information
+    # ==========================================================================
+
+    - name: Check if Tailscale is installed
+      ansible.builtin.command: which tailscale
+      register: tailscale_check
+      changed_when: false
+      failed_when: false
+      tags: [check]
+
+    - name: Get Tailscale status before removal
+      ansible.builtin.command: tailscale status
+      register: tailscale_status
+      changed_when: false
+      failed_when: false
+      when: tailscale_check.rc == 0
+      tags: [check]
+
+    - name: Display current status
+      ansible.builtin.debug:
+        msg: "{{ tailscale_status.stdout_lines }}"
+      when: 
+        - tailscale_check.rc == 0
+        - tailscale_status is defined
+      tags: [check]
+
+    # ==========================================================================
+    # Tailscale Removal
+    # ==========================================================================
+
+    - name: Logout from Tailscale
+      ansible.builtin.command: tailscale logout
+      register: logout_result
+      changed_when: true
+      failed_when: false
+      when: tailscale_check.rc == 0
+      tags: [uninstall]
+
+    - name: Stop Tailscale service
+      ansible.builtin.systemd:
+        name: tailscaled
+        state: stopped
+        enabled: no
+      failed_when: false
+      tags: [uninstall]
+
+    - name: Remove Tailscale package
+      ansible.builtin.apt:
+        name: tailscale
+        state: absent
+        purge: yes
+      when: ansible_os_family == "Debian"
+      tags: [uninstall]
+
+    - name: Remove Tailscale repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/ubuntu {{ ansible_distribution_release }} main"
+        state: absent
+        filename: tailscale
+      when: ansible_os_family == "Debian"
+      tags: [uninstall]
+
+    - name: Remove Tailscale GPG key
+      ansible.builtin.file:
+        path: /usr/share/keyrings/tailscale-archive-keyring.gpg
+        state: absent
+      tags: [uninstall]
+
+    # ==========================================================================
+    # Configuration Cleanup
+    # ==========================================================================
+
+    - name: Remove Tailscale configuration directory
+      ansible.builtin.file:
+        path: /var/lib/tailscale
+        state: absent
+      when: remove_config | bool
+      tags: [cleanup]
+
+    - name: Remove Tailscale state files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/default/tailscaled
+        - /etc/systemd/system/tailscaled.service.d
+      when: remove_config | bool
+      tags: [cleanup]
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: yes
+      tags: [cleanup]
+
+    # ==========================================================================
+    # Firewall Cleanup
+    # ==========================================================================
+
+    - name: Check if UFW is active
+      ansible.builtin.command: ufw status
+      register: ufw_status
+      changed_when: false
+      failed_when: false
+      tags: [firewall]
+
+    - name: Remove Tailscale UFW rule
+      community.general.ufw:
+        rule: allow
+        port: "41641"
+        proto: udp
+        delete: yes
+      when: 
+        - ufw_status.rc == 0
+        - "'Status: active' in ufw_status.stdout"
+      failed_when: false
+      tags: [firewall]
+
+    # ==========================================================================
+    # Verification
+    # ==========================================================================
+
+    - name: Verify Tailscale removal
+      ansible.builtin.command: which tailscale
+      register: verify_removal
+      changed_when: false
+      failed_when: false
+      tags: [verify]
+
+    - name: Confirm removal status
+      ansible.builtin.debug:
+        msg: "✓ Tailscale has been successfully removed"
+      when: verify_removal.rc != 0
+      tags: [verify]
+
+    - name: Warn if still present
+      ansible.builtin.debug:
+        msg: "⚠ Warning: Tailscale binary still found. Manual cleanup may be required."
+      when: verify_removal.rc == 0
+      tags: [verify]
+
+  # ============================================================================
+  # Post-Play Summary
+  # ============================================================================
+
+  post_tasks:
+    - name: Uninstallation Summary
+      ansible.builtin.debug:
+        msg:
+          - "╔════════════════════════════════════════════════════════════╗"
+          - "║         Tailscale Uninstallation Complete                 ║"
+          - "╚════════════════════════════════════════════════════════════╝"
+          - ""
+          - "The following actions were performed:"
+          - "  ✓ Tailscale logged out from Tailnet"
+          - "  ✓ Tailscale service stopped and disabled"
+          - "  ✓ Tailscale package removed"
+          - "  ✓ Repository and GPG keys removed"
+          - "  {{ '✓' if remove_config else '✗' }} Configuration files removed"
+          - ""
+          - "Node has been disconnected from your Tailnet."
+          - ""
+      run_once: true
+      tags: [always]

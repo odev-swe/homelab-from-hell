@@ -92,4 +92,15 @@ vm_configs = {
   #   tags        = ["database", "production"]
   #   description = "PostgreSQL Database Server"
   # }
+  
+  # Example with SSH key only (no password):
+  # "vm-4" = {
+  #   vm_id       = 105
+  #   name        = "secure-server"
+  #   ipconfig    = "ip=192.168.100.105/24,gw=192.168.100.1"
+  #   ciuser      = "admin"
+  #   # cipassword is optional - omit for SSH key auth only
+  #   tags        = ["secure", "production"]
+  #   description = "SSH Key Authentication Only"
+  # }
 }

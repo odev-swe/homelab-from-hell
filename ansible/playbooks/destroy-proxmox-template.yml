@@ -1,0 +1,30 @@
+---
+- name: Destroy Proxmox VM Template
+  hosts: proxmox
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../group_vars/all.yml
+
+  tasks:
+    - name: Check if template exists
+      ansible.builtin.command: "qm list | grep {{ template_id }}"
+      register: template_exists
+      ignore_errors: true
+      changed_when: false
+
+    - name: Destroy template
+      ansible.builtin.command: "qm destroy {{ template_id }} --purge"
+      when: template_exists.rc == 0
+      register: destroy_result
+      changed_when: true
+
+    - name: Display success message
+      ansible.builtin.debug:
+        msg: "Template {{ template_name }} (ID: {{ template_id }}) destroyed successfully!"
+      when: template_exists.rc == 0
+
+    - name: Display not found message
+      ansible.builtin.debug:
+        msg: "Template {{ template_name }} (ID: {{ template_id }}) does not exist."
+      when: template_exists.rc != 0

@@ -1,0 +1,26 @@
+---
+# Proxmox connection settings
+proxmox_host: "192.168.100.10"
+proxmox_node: "pve"
+
+# Template settings
+template_id: 9000
+template_name: "ubuntu-cloud-template"
+template_storage: "local"
+
+# Ubuntu cloud image settings
+ubuntu_version: "22.04"
+ubuntu_image_url: "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+ubuntu_image_name: "jammy-server-cloudimg-amd64.img"
+
+# VM Hardware configuration
+vm_memory: 2048
+vm_cores: 2
+vm_sockets: 1
+vm_disk_size: "32G"
+vm_bridge: "vmbr0"
+
+# Cloud-init default settings
+cloudinit_user: "ubuntu"
+cloudinit_password: "ubuntu"
+cloudinit_ssh_key: "" # Add your SSH public key here

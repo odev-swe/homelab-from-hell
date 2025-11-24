@@ -1,0 +1,5 @@
+*.retry
+.vault_pass
+*.log
+group_vars/secrets.yml
+host_vars/secrets.yml

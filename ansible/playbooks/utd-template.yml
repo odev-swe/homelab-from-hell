@@ -1,0 +1,17 @@
+# apt install and upgrade
+- name: UTD Template | Apt Install and Upgrade
+  hosts: kubernetes
+  become: true
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+      register: apt_update_result
+      failed_when:
+        - apt_update_result is failed
+        - "'temporary failure' not in apt_update_result.msg | lower"
+      ignore_errors: true
+
+    - name: Upgrade all apt packages to the latest version
+      ansible.builtin.apt:
+        upgrade: dist

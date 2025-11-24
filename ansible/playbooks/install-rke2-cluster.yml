@@ -1,0 +1,137 @@
+---
+- name: Install and Configure RKE2 Rancher Server
+  hosts: kubernetes[0]
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Install qemu-guest-agent
+      ansible.builtin.apt:
+        name: qemu-guest-agent
+        state: present
+        update_cache: true
+
+    - name: Enable and start qemu-guest-agent service
+      ansible.builtin.systemd:
+        name: qemu-guest-agent
+        enabled: true
+        state: started
+
+    - name: Create RKE2 config directory
+      ansible.builtin.file:
+        path: /etc/rancher/rke2
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Configure RKE2 to use Cilium CNI
+      ansible.builtin.copy:
+        content: |
+          # Disable default CNI (Canal)
+          cni: cilium
+          
+          # Disable built-in network policy controller
+          disable:
+            - rke2-canal
+            - rke2-ingress-nginx
+        dest: /etc/rancher/rke2/config.yaml
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Download RKE2 installer script
+      ansible.builtin.get_url:
+        url: "https://get.rke2.io"
+        dest: /tmp/install-rke2.sh
+        mode: '0755'
+
+    - name: Run RKE2 installer script if not installed
+      ansible.builtin.shell: |
+        set -o pipefail
+        /tmp/install-rke2.sh
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    - name: Enable and start RKE2 service
+      ansible.builtin.systemd:
+        name: rke2-server
+        enabled: true
+        state: started
+
+    - name: Wait for RKE2 kubeconfig to be generated
+      ansible.builtin.wait_for:
+        path: /etc/rancher/rke2/rke2.yaml
+        state: present
+        timeout: 300
+
+    # ----------------------------------------------
+    # Kubeconfig and kubectl setup
+    # ----------------------------------------------
+
+    - name: Create kube directory for masternode
+      ansible.builtin.file:
+        path: /home/masternode/.kube
+        state: directory
+        owner: masternode
+        group: masternode
+        mode: '0700'
+
+    - name: Copy RKE2 kubeconfig to masternode's home
+      ansible.builtin.copy:
+        src: /etc/rancher/rke2/rke2.yaml
+        dest: /home/masternode/.kube/config
+        remote_src: true
+        owner: masternode
+        group: masternode
+        mode: '0600'
+
+    - name: Get latest stable kubectl version
+      ansible.builtin.uri:
+        url: https://dl.k8s.io/release/stable.txt
+        return_content: true
+      register: kubectl_version
+
+    - name: Install kubectl binary
+      ansible.builtin.get_url:
+        url: "https://dl.k8s.io/release/{{ kubectl_version.content | trim }}/bin/linux/amd64/kubectl"
+        dest: /usr/local/bin/kubectl
+        mode: '0755'
+
+    - name: Verify kubectl connectivity as masternode
+      ansible.builtin.command: "kubectl --kubeconfig /home/masternode/.kube/config get nodes"
+      register: kubectl_output
+      failed_when: kubectl_output.rc != 0
+      changed_when: false
+
+    - name: Display kubectl get nodes result
+      ansible.builtin.debug:
+        var: kubectl_output.stdout
+
+    - name: Verify CNI is Cilium
+      ansible.builtin.command: "kubectl --kubeconfig /home/masternode/.kube/config get pods -n kube-system -l k8s-app=cilium -o jsonpath='{.items[*].metadata.name}'"
+      register: cilium_verification
+      changed_when: false
+
+    - name: Display Cilium verification
+      ansible.builtin.debug:
+        msg: "Cilium CNI is installed and running: {{ cilium_verification.stdout }}"
+
+    - name: Reboot the machine
+      ansible.builtin.reboot:
+        msg: "Rebooting after RKE2 installation"
+        pre_reboot_delay: 5
+        post_reboot_delay: 30
+        reboot_timeout: 600
+
+    - name: Wait for machine to come back online
+      ansible.builtin.wait_for_connection:
+        delay: 10
+        timeout: 300
+
+  handlers:
+    - name: Restart rke2-server
+      ansible.builtin.systemd:
+        name: rke2-server
+        state: restarted

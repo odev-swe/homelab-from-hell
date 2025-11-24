@@ -35,7 +35,7 @@ resource "proxmox_vm_qemu" "vms" {
   ipconfig0  = each.value.ipconfig
   skip_ipv6  = true
   ciuser     = each.value.ciuser
-  cipassword = each.value.cipassword
+  cipassword = each.value.cipassword != null ? each.value.cipassword : ""
   sshkeys    = file(var.ssh_public_key_path)
 
   # Tags

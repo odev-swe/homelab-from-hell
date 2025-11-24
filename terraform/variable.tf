@@ -124,7 +124,7 @@ variable "vm_configs" {
     startup     = optional(string)
     ipconfig    = string
     ciuser      = string
-    cipassword  = string
+    cipassword  = optional(string)
     bridge      = optional(string)
     network_tag = optional(number)
     tags        = optional(list(string), [])

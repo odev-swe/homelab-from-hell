@@ -1,0 +1,114 @@
+---
+- name: Create Proxmox VM Template from Ubuntu Cloud Image
+  hosts: proxmox
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../group_vars/all.yml
+
+  tasks:
+    - name: Check if template already exists
+      ansible.builtin.shell: "qm list | grep -w {{ template_id }}"
+      register: template_exists
+      ignore_errors: true
+      changed_when: false
+
+    - name: Get VM info to check existence before deletion
+      ansible.builtin.command: "qm status {{ template_id }}"
+      register: vm_status
+      ignore_errors: true
+      changed_when: false
+
+    - name: Delete existing template if it exists
+      ansible.builtin.command: "qm destroy {{ template_id }}"
+      register: delete_result
+      when: vm_status.rc == 0
+      failed_when: delete_result.rc != 0
+      changed_when: vm_status.rc == 0
+
+    - name: Download Ubuntu cloud image
+      ansible.builtin.get_url:
+        url: "{{ ubuntu_image_url }}"
+        dest: "/tmp/{{ ubuntu_image_name }}"
+        mode: '0644'
+      register: download_result
+      changed_when: download_result is changed
+
+    - name: Create VM
+      ansible.builtin.shell: |
+        qm create {{ template_id }} \
+          --name {{ template_name }} \
+          --memory {{ vm_memory }} \
+          --cores {{ vm_cores }} \
+          --sockets {{ vm_sockets }} \
+          --net0 virtio,bridge={{ vm_bridge }} \
+          --scsihw virtio-scsi-single \
+          --scsi0 {{ template_storage }}:0,import-from=/tmp/{{ ubuntu_image_name }},discard=on \
+          --ide2 {{ template_storage }}:cloudinit \
+          --boot order=scsi0 \
+          --serial0 socket \
+          --vga serial0 \
+          --agent enabled=1 \
+          --bios ovmf \
+          --machine q35 \
+          --ostype l26
+      register: vm_created
+      changed_when: vm_created.rc == 0
+
+    - name: Add EFI disk
+      ansible.builtin.command: "qm set {{ template_id }} --efidisk0 {{ template_storage }}:1,efitype=4m,pre-enrolled-keys=1"
+      when: vm_created is defined and vm_created.rc == 0
+      register: efi_disk_result
+      changed_when: efi_disk_result.rc == 0
+
+    - name: Resize disk
+      ansible.builtin.command: "qm disk resize {{ template_id }} scsi0 {{ vm_disk_size }}"
+      when: vm_created is defined and vm_created.rc == 0
+      register: resize_disk_result
+      changed_when: resize_disk_result.rc == 0
+
+    - name: Create cloud-init snippet for qemu-guest-agent
+      ansible.builtin.copy:
+        content: |
+          #cloud-config
+          packages:
+            - qemu-guest-agent
+          runcmd:
+            - systemctl start qemu-guest-agent
+            - systemctl enable qemu-guest-agent
+        dest: "/var/lib/vz/snippets/qemu-agent-{{ template_id }}.yml"
+        mode: '0644'
+      when: vm_created is defined and vm_created.rc == 0
+
+    - name: Set cloud-init settings
+      ansible.builtin.shell: |
+        qm set {{ template_id }} \
+          --ciuser {{ cloudinit_user }} \
+          --cipassword {{ cloudinit_password }} \
+          {% if cloudinit_ssh_key %}--sshkey {{ cloudinit_ssh_key }}{% endif %} \
+          --ipconfig0 ip=dhcp \
+          --cicustom "vendor=local:snippets/qemu-agent-{{ template_id }}.yml"
+      when: vm_created is defined and vm_created.rc == 0
+      register: cloudinit_result
+      changed_when: cloudinit_result.rc == 0
+
+    - name: Convert VM to template
+      ansible.builtin.command: "qm template {{ template_id }}"
+      when: vm_created is defined and vm_created.rc == 0
+      register: convert_result
+      changed_when: convert_result.rc == 0
+
+    - name: Clean up downloaded image
+      ansible.builtin.file:
+        path: "/tmp/{{ ubuntu_image_name }}"
+        state: absent
+
+    - name: Clean up cloud-init snippet
+      ansible.builtin.file:
+        path: "/var/lib/vz/snippets/qemu-agent-{{ template_id }}.yml"
+        state: absent
+
+    - name: Display success message
+      ansible.builtin.debug:
+        msg: "✅ Template {{ template_name }} (ID: {{ template_id }}) created successfully!"
+      when: vm_created is defined and vm_created.rc == 0
