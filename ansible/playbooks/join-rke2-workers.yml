@@ -27,18 +27,18 @@
   gather_facts: false
 
   tasks:
-    - name: Get RKE2 server node token
-      ansible.builtin.slurp:
-        src: /var/lib/rancher/rke2/server/node-token
-      register: rke2_token
+  - name: Get RKE2 server node token
+    ansible.builtin.slurp:
+      src: /var/lib/rancher/rke2/server/node-token
+    register: rke2_token
 
-    - name: Set token as fact
-      ansible.builtin.set_fact:
-        rke2_node_token: "{{ rke2_token.content | b64decode | trim }}"
+  - name: Set token as fact
+    ansible.builtin.set_fact:
+      rke2_node_token: "{{ rke2_token.content | b64decode | trim }}"
 
-    - name: Get master node IP
-      ansible.builtin.set_fact:
-        rke2_server_url: "https://{{ ansible_host }}:9345"
+  - name: Get master node IP
+    ansible.builtin.set_fact:
+      rke2_server_url: "https://{{ ansible_host }}:9345"
 
 - name: Install and Configure RKE2 Agent on Worker Nodes
   hosts: k8s_workers
@@ -50,80 +50,86 @@
     rke2_server_url: "{{ hostvars[groups['k8s_master'][0]]['rke2_server_url'] }}"
 
   tasks:
-    - name: Display connection information
-      ansible.builtin.debug:
-        msg:
-          - "Joining worker: {{ inventory_hostname }}"
-          - "Master server: {{ rke2_server_url }}"
-          - "Token available: {{ 'Yes' if rke2_node_token else 'No' }}"
+  - name: Display connection information
+    ansible.builtin.debug:
+      msg:
+      - "Joining worker: {{ inventory_hostname }}"
+      - "Master server: {{ rke2_server_url }}"
+      - "Token available: {{ 'Yes' if rke2_node_token else 'No' }}"
 
-    - name: Install qemu-guest-agent
-      ansible.builtin.apt:
-        name: qemu-guest-agent
-        state: present
-        update_cache: true
+  - name: Install qemu-guest-agent
+    ansible.builtin.apt:
+      name: qemu-guest-agent
+      state: present
+      update_cache: true
 
-    - name: Enable and start qemu-guest-agent service
-      ansible.builtin.systemd:
-        name: qemu-guest-agent
-        enabled: true
-        state: started
+  - name: Enable and start qemu-guest-agent service
+    ansible.builtin.systemd:
+      name: qemu-guest-agent
+      enabled: true
+      state: started
 
-    - name: Create RKE2 config directory
-      ansible.builtin.file:
-        path: /etc/rancher/rke2
-        state: directory
-        owner: root
-        group: root
-        mode: '0755'
+  - name: Check if RKE2 agent is already installed
+    ansible.builtin.stat:
+      path: /usr/local/bin/rke2
+    register: rke2_installed
 
-    - name: Configure RKE2 agent
-      ansible.builtin.copy:
-        content: |
-          server: {{ rke2_server_url }}
-          token: {{ rke2_node_token }}
-          # Use inventory hostname to ensure uniqueness
-          node-name: {{ inventory_hostname }}
-          # Worker node labels (optional)
-          node-label:
-            - "node.kubernetes.io/worker=true"
-            - "node-role.kubernetes.io/worker=true"
-        dest: /etc/rancher/rke2/config.yaml
-        owner: root
-        group: root
-        mode: '0600'
+  - name: Install RKE2 agent using official installer
+    ansible.builtin.shell: |
+      curl -sfL https://get.rke2.io | INSTALL_RKE2_TYPE="agent" sh -
+    args:
+      executable: /bin/bash
+    when: not rke2_installed.stat.exists
+    changed_when: true
 
-    - name: Check if RKE2 agent is already installed
-      ansible.builtin.stat:
-        path: /usr/local/bin/rke2
-      register: rke2_installed
+  - name: Enable RKE2 agent service
+    ansible.builtin.shell: systemctl enable rke2-agent.service
+    args:
+      executable: /bin/bash
+    changed_when: true
 
-    - name: Install RKE2 agent using official installer
-      ansible.builtin.shell: |
-        curl -sfL https://get.rke2.io | INSTALL_RKE2_TYPE="agent" sh -
-      args:
-        executable: /bin/bash
-      when: not rke2_installed.stat.exists
-      changed_when: true
+  - name: Create RKE2 config directory
+    ansible.builtin.file:
+      path: /etc/rancher/rke2
+      state: directory
+      owner: root
+      group: root
+      mode: '0755'
 
-    - name: Enable and start RKE2 agent service
-      ansible.builtin.systemd:
-        name: rke2-agent
-        enabled: true
-        state: started
+  - name: Configure RKE2 agent
+    ansible.builtin.copy:
+      content: |
+        server: {{ rke2_server_url }}
+        token: {{ rke2_node_token }}
+        # Use inventory hostname to ensure uniqueness
+        node-name: {{ inventory_hostname }}
+        # Worker node labels (optional)
+        node-label:
+          - "node.kubernetes.io/worker=true"
+          - "node-role.kubernetes.io/worker=true"
+      dest: /etc/rancher/rke2/config.yaml
+      owner: root
+      group: root
+      mode: '0600'
 
-    - name: Wait for RKE2 agent to be ready
-      ansible.builtin.pause:
-        seconds: 30
-        prompt: "Waiting for RKE2 agent to join the cluster..."
+  - name: Start RKE2 agent service
+    ansible.builtin.shell: systemctl start rke2-agent.service
+    args:
+      executable: /bin/bash
+    changed_when: true
 
-    - name: Create kube directory for worker user
-      ansible.builtin.file:
-        path: "/home/{{ ansible_user }}/.kube"
-        state: directory
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: '0700'
+  - name: Wait for RKE2 agent to be ready
+    ansible.builtin.pause:
+      seconds: 30
+      prompt: "Waiting for RKE2 agent to join the cluster..."
+
+  - name: Create kube directory for worker user
+    ansible.builtin.file:
+      path: "/home/{{ ansible_user }}/.kube"
+      state: directory
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0700'
 
 - name: Verify Worker Nodes Have Joined
   hosts: k8s_master
@@ -131,71 +137,71 @@
   gather_facts: false
 
   tasks:
-    - name: Wait for nodes to appear in cluster
-      ansible.builtin.pause:
-        seconds: 15
-        prompt: "Waiting for nodes to register..."
+  - name: Wait for nodes to appear in cluster
+    ansible.builtin.pause:
+      seconds: 15
+      prompt: "Waiting for nodes to register..."
 
-    - name: Get all cluster nodes
-      ansible.builtin.command: kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get nodes -o wide
-      register: cluster_nodes
-      changed_when: false
+  - name: Get all cluster nodes
+    ansible.builtin.command: kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get nodes -o wide
+    register: cluster_nodes
+    changed_when: false
 
-    - name: Display cluster nodes
-      ansible.builtin.debug:
-        var: cluster_nodes.stdout_lines
+  - name: Display cluster nodes
+    ansible.builtin.debug:
+      var: cluster_nodes.stdout_lines
 
-    - name: Get node count
-      ansible.builtin.shell: |
-        kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get nodes --no-headers | wc -l
-      register: node_count
-      changed_when: false
+  - name: Get node count
+    ansible.builtin.shell: |
+      kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get nodes --no-headers | wc -l
+    register: node_count
+    changed_when: false
 
-    - name: Verify worker nodes are Ready
-      ansible.builtin.shell: |
-        kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get nodes -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}' | grep -o "True" | wc -l
-      register: ready_nodes
-      changed_when: false
+  - name: Verify worker nodes are Ready
+    ansible.builtin.shell: |
+      kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get nodes -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}' | grep -o "True" | wc -l
+    register: ready_nodes
+    changed_when: false
 
-    - name: Display cluster status
-      ansible.builtin.debug:
-        msg:
-          - "Total nodes in cluster: {{ node_count.stdout }}"
-          - "Nodes in Ready state: {{ ready_nodes.stdout }}"
-          - "Expected: {{ groups['k8s_master'] | length + groups['k8s_workers'] | length }}"
+  - name: Display cluster status
+    ansible.builtin.debug:
+      msg:
+      - "Total nodes in cluster: {{ node_count.stdout }}"
+      - "Nodes in Ready state: {{ ready_nodes.stdout }}"
+      - "Expected: {{ groups['k8s_master'] | length + groups['k8s_workers'] | length }}"
 
-    - name: Check for worker labels
-      ansible.builtin.shell: |
-        kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get nodes -l node-role.kubernetes.io/worker=true -o name
-      register: worker_nodes
-      changed_when: false
+  - name: Check for worker labels
+    ansible.builtin.shell: |
+      kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get nodes -l node-role.kubernetes.io/worker=true -o name
+    register: worker_nodes
+    changed_when: false
 
-    - name: Display worker nodes
-      ansible.builtin.debug:
-        msg: "Worker nodes: {{ worker_nodes.stdout_lines }}"
+  - name: Display worker nodes
+    ansible.builtin.debug:
+      msg: "Worker nodes: {{ worker_nodes.stdout_lines }}"
 
   post_tasks:
-    - name: Installation Summary
-      ansible.builtin.debug:
-        msg:
-          - "╔════════════════════════════════════════════════════════════╗"
-          - "║       RKE2 Worker Nodes Successfully Joined                ║"
-          - "╚════════════════════════════════════════════════════════════╝"
-          - ""
-          - "Cluster Status:"
-          - "  • Total nodes: {{ node_count.stdout }}"
-          - "  • Ready nodes: {{ ready_nodes.stdout }}"
-          - ""
-          - "Next Steps:"
-          - "  1. Verify nodes: kubectl get nodes"
-          - "  2. Check pods: kubectl get pods -A"
-          - "  3. Test workload: kubectl run test-nginx --image=nginx"
-          - "  4. View logs: kubectl logs <pod-name>"
-          - ""
-          - "Worker Node Management:"
-          - "  • Add labels: kubectl label node <name> key=value"
-          - "  • Cordon node: kubectl cordon <node-name>"
-          - "  • Drain node: kubectl drain <node-name>"
-          - "  • Remove node: kubectl delete node <node-name>"
-          - ""
-      run_once: true
+  - name: Installation Summary
+    ansible.builtin.debug:
+      msg:
+      - "╔════════════════════════════════════════════════════════════╗"
+      - "║       RKE2 Worker Nodes Successfully Joined                ║"
+      - "╚════════════════════════════════════════════════════════════╝"
+      - ""
+      - "Cluster Status:"
+      - "  • Total nodes: {{ node_count.stdout }}"
+      - "  • Ready nodes: {{ ready_nodes.stdout }}"
+      - ""
+      - "Next Steps:"
+      - "  1. Verify nodes: kubectl get nodes"
+      - "  2. Check pods: kubectl get pods -A"
+      - "  3. Test workload: kubectl run test-nginx --image=nginx"
+      - "  4. View logs: kubectl logs <pod-name>"
+      - ""
+      - "Worker Node Management:"
+      - "  • Add labels: kubectl label node <name> key=value"
+      - "  • Cordon node: kubectl cordon <node-name>"
+      - "  • Drain node: kubectl drain <node-name>"
+      - "  • Remove node: kubectl delete node <node-name>"
+      - ""
+    run_once: true
