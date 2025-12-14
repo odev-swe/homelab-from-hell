@@ -1,0 +1,291 @@
+---
+# ==============================================================================
+# Ansible Playbook: Remove RKE2 Worker Nodes from Cluster
+# ==============================================================================
+#
+# Description:
+#   This playbook safely removes worker nodes from the RKE2 cluster by:
+#   1. Draining the node (moving pods to other nodes)
+#   2. Deleting the node from the Kubernetes cluster
+#   3. Uninstalling RKE2 agent from the worker
+#   4. Cleaning up all RKE2 configuration and data
+#
+# Prerequisites:
+#   - RKE2 cluster is running
+#   - Worker nodes are accessible via SSH
+#   - kubectl is configured on the master node
+#
+# Usage:
+#   # Remove all worker nodes
+#   ansible-playbook playbooks/remove-rke2-workers.yml
+#
+#   # Remove specific worker
+#   ansible-playbook playbooks/remove-rke2-workers.yml --limit k8s-worker-1
+#
+#   # Skip confirmation prompt
+#   ansible-playbook playbooks/remove-rke2-workers.yml --extra-vars "confirm_removal=yes"
+#
+# ==============================================================================
+
+- name: Confirm Worker Node Removal
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: Display warning message
+      ansible.builtin.debug:
+        msg:
+          - "⚠️  WARNING: This will remove worker nodes from the cluster!"
+          - ""
+          - "The following actions will be performed:"
+          - "  1. Drain worker nodes (move all pods)"
+          - "  2. Delete nodes from Kubernetes cluster"
+          - "  3. Uninstall RKE2 agent from workers"
+          - "  4. Remove all RKE2 data and configuration"
+          - ""
+          - "Target workers: {{ groups['k8s_workers'] | join(', ') }}"
+
+    - name: Confirm removal
+      ansible.builtin.pause:
+        prompt: "\n⚠️  Are you sure you want to continue? (yes/no)"
+      register: user_confirmation
+      when: confirm_removal is not defined
+
+    - name: Abort if user did not confirm
+      ansible.builtin.fail:
+        msg: "Worker node removal aborted by user"
+      when:
+        - confirm_removal is not defined
+        - user_confirmation.user_input | lower != 'yes'
+
+- name: Drain and Delete Worker Nodes from Cluster
+  hosts: k8s_master
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Get list of worker nodes to remove
+      ansible.builtin.set_fact:
+        workers_to_remove: "{{ groups['k8s_workers'] }}"
+
+    - name: Display nodes being removed
+      ansible.builtin.debug:
+        msg: "Removing worker nodes: {{ workers_to_remove | join(', ') }}"
+
+    - name: Check if nodes exist in cluster
+      ansible.builtin.shell: |
+        kubectl get nodes {{ item }} -o name 2>/dev/null || echo "not-found"
+      loop: "{{ workers_to_remove }}"
+      register: node_check
+      changed_when: false
+
+    - name: Cordon worker nodes (prevent new pods)
+      ansible.builtin.command: kubectl cordon {{ item.item }}
+      loop: "{{ node_check.results }}"
+      when: "'not-found' not in item.stdout"
+      ignore_errors: true
+      changed_when: true
+
+    - name: Drain worker nodes (move pods to other nodes)
+      ansible.builtin.command: >
+        kubectl drain {{ item.item }}
+        --ignore-daemonsets
+        --delete-emptydir-data
+        --force
+        --timeout=300s
+      loop: "{{ node_check.results }}"
+      when: "'not-found' not in item.stdout"
+      register: drain_result
+      ignore_errors: true
+      changed_when: true
+
+    - name: Display drain results
+      ansible.builtin.debug:
+        msg: "Drained {{ item.item.item }}: {{ 'SUCCESS' if item.rc == 0 else 'FAILED - continuing anyway' }}"
+      loop: "{{ drain_result.results }}"
+      when: item.item is defined
+
+    - name: Wait for pods to be moved
+      ansible.builtin.pause:
+        seconds: 10
+        prompt: "Waiting for pods to finish moving..."
+
+    - name: Delete worker nodes from cluster
+      ansible.builtin.command: kubectl delete node {{ item.item }}
+      loop: "{{ node_check.results }}"
+      when: "'not-found' not in item.stdout"
+      register: delete_result
+      ignore_errors: true
+      changed_when: true
+
+    - name: Display deletion results
+      ansible.builtin.debug:
+        msg: "Deleted {{ item.item.item }}: {{ 'SUCCESS' if item.rc == 0 else 'FAILED' }}"
+      loop: "{{ delete_result.results }}"
+      when: item.item is defined
+
+    - name: Get remaining nodes
+      ansible.builtin.command: kubectl get nodes -o wide
+      register: remaining_nodes
+      changed_when: false
+
+    - name: Display remaining cluster nodes
+      ansible.builtin.debug:
+        var: remaining_nodes.stdout_lines
+
+- name: Uninstall RKE2 Agent from Worker Nodes
+  hosts: k8s_workers
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Check if RKE2 is installed
+      ansible.builtin.stat:
+        path: /usr/local/bin/rke2-uninstall.sh
+      register: rke2_uninstall_script
+
+    - name: Display uninstallation status
+      ansible.builtin.debug:
+        msg: "RKE2 on {{ inventory_hostname }}: {{ 'Found - will uninstall' if rke2_uninstall_script.stat.exists else 'Not found - skipping' }}"
+
+    - name: Stop RKE2 agent service
+      ansible.builtin.systemd:
+        name: rke2-agent
+        state: stopped
+      when: rke2_uninstall_script.stat.exists
+      ignore_errors: true
+
+    - name: Run RKE2 uninstall script
+      ansible.builtin.command: /usr/local/bin/rke2-uninstall.sh
+      when: rke2_uninstall_script.stat.exists
+      register: uninstall_output
+      changed_when: true
+
+    - name: Display uninstall output
+      ansible.builtin.debug:
+        var: uninstall_output.stdout_lines
+      when: 
+        - rke2_uninstall_script.stat.exists
+        - uninstall_output.stdout_lines is defined
+
+    - name: Remove any remaining RKE2 directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/rancher/rke2
+        - /var/lib/rancher/rke2
+        - /var/lib/kubelet
+        - /var/lib/cni
+        - /etc/cni
+        - /opt/cni
+        - /run/k3s
+      when: rke2_uninstall_script.stat.exists
+
+    - name: Remove RKE2 binaries
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /usr/local/bin/rke2
+        - /usr/local/bin/rke2-killall.sh
+        - /usr/local/bin/rke2-uninstall.sh
+        - /usr/local/bin/kubectl
+        - /usr/local/bin/crictl
+        - /usr/local/bin/ctr
+      when: rke2_uninstall_script.stat.exists
+
+    - name: Clean up systemd service files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/systemd/system/rke2-agent.service
+        - /usr/local/lib/systemd/system/rke2-agent.service
+      when: rke2_uninstall_script.stat.exists
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: rke2_uninstall_script.stat.exists
+
+    - name: Remove network interfaces
+      ansible.builtin.shell: |
+        ip link delete cilium_vxlan 2>/dev/null || true
+        ip link delete cilium_net 2>/dev/null || true
+        ip link delete cilium_host 2>/dev/null || true
+      args:
+        executable: /bin/bash
+      when: rke2_uninstall_script.stat.exists
+      changed_when: false
+
+    - name: Clean iptables rules
+      ansible.builtin.shell: |
+        iptables-save | grep -v KUBE- | grep -v CNI- | grep -v CILIUM_ | iptables-restore || true
+        ip6tables-save | grep -v KUBE- | grep -v CNI- | grep -v CILIUM_ | ip6tables-restore || true
+      args:
+        executable: /bin/bash
+      when: rke2_uninstall_script.stat.exists
+      changed_when: false
+
+    - name: Remove kubectl config for worker user
+      ansible.builtin.file:
+        path: "/home/{{ ansible_user }}/.kube"
+        state: absent
+      ignore_errors: true
+
+- name: Verify Worker Node Removal
+  hosts: k8s_master
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Wait for cluster to stabilize
+      ansible.builtin.pause:
+        seconds: 5
+
+    - name: Get final cluster status
+      ansible.builtin.command: kubectl get nodes -o wide
+      register: final_nodes
+      changed_when: false
+
+    - name: Get pod status
+      ansible.builtin.command: kubectl get pods -A -o wide
+      register: final_pods
+      changed_when: false
+
+    - name: Display final cluster status
+      ansible.builtin.debug:
+        msg:
+          - "╔════════════════════════════════════════════════════════════╗"
+          - "║       Worker Nodes Successfully Removed                    ║"
+          - "╚════════════════════════════════════════════════════════════╝"
+          - ""
+          - "Remaining Nodes:"
+
+    - name: Show remaining nodes
+      ansible.builtin.debug:
+        var: final_nodes.stdout_lines
+
+    - name: Show pod distribution
+      ansible.builtin.debug:
+        msg: "Pod Distribution:"
+
+    - name: Display pods
+      ansible.builtin.debug:
+        var: final_pods.stdout_lines
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "✅ Worker nodes have been removed from the cluster"
+          - "✅ RKE2 agent uninstalled from worker nodes"
+          - "✅ All configuration and data cleaned up"
+          - ""
+          - "Next Steps:"
+          - "  • Verify workloads are running on remaining nodes"
+          - "  • Check that no pods are pending or failing"
+          - "  • Remove workers from Terraform/Proxmox if needed"
+          - "  • Remove workers from Ansible inventory"
+          - ""

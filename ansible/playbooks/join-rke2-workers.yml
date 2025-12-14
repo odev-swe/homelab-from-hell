@@ -74,18 +74,39 @@
       path: /usr/local/bin/rke2
     register: rke2_installed
 
+  - name: Check if RKE2 agent is already running
+    ansible.builtin.systemd:
+      name: rke2-agent
+    register: rke2_service_status
+    ignore_errors: true
+
+  - name: Display RKE2 installation status
+    ansible.builtin.debug:
+      msg: 
+        - "RKE2 installed: {{ rke2_installed.stat.exists }}"
+        - "RKE2 agent running: {{ rke2_service_status.status.ActiveState | default('not installed') == 'active' }}"
+
+  - name: Skip installation if RKE2 is already installed and running
+    ansible.builtin.debug:
+      msg: "RKE2 agent is already installed and running. Skipping installation steps."
+    when: 
+      - rke2_installed.stat.exists
+      - rke2_service_status.status.ActiveState is defined
+      - rke2_service_status.status.ActiveState == 'active'
+
+  - name: Download RKE2 installer script
+    ansible.builtin.get_url:
+      url: https://get.rke2.io
+      dest: /tmp/install-rke2.sh
+      mode: '0755'
+    when: not rke2_installed.stat.exists
+
   - name: Install RKE2 agent using official installer
     ansible.builtin.shell: |
-      curl -sfL https://get.rke2.io | INSTALL_RKE2_TYPE="agent" sh -
+      INSTALL_RKE2_TYPE="agent" sh /tmp/install-rke2.sh
     args:
       executable: /bin/bash
     when: not rke2_installed.stat.exists
-    changed_when: true
-
-  - name: Enable RKE2 agent service
-    ansible.builtin.shell: systemctl enable rke2-agent.service
-    args:
-      executable: /bin/bash
     changed_when: true
 
   - name: Create RKE2 config directory
@@ -101,27 +122,48 @@
       content: |
         server: {{ rke2_server_url }}
         token: {{ rke2_node_token }}
-        # Use inventory hostname to ensure uniqueness
         node-name: {{ inventory_hostname }}
-        # Worker node labels (optional)
-        node-label:
-          - "node.kubernetes.io/worker=true"
-          - "node-role.kubernetes.io/worker=true"
       dest: /etc/rancher/rke2/config.yaml
       owner: root
       group: root
       mode: '0600'
+    when: not (rke2_installed.stat.exists and rke2_service_status.status.ActiveState | default('') == 'active')
+
+  - name: Enable RKE2 agent service
+    ansible.builtin.systemd:
+      name: rke2-agent
+      enabled: true
+      daemon_reload: true
+    when: not (rke2_installed.stat.exists and rke2_service_status.status.ActiveState | default('') == 'active')
 
   - name: Start RKE2 agent service
-    ansible.builtin.shell: systemctl start rke2-agent.service
-    args:
-      executable: /bin/bash
-    changed_when: true
+    ansible.builtin.systemd:
+      name: rke2-agent
+      state: started
+    register: rke2_start
+    when: not (rke2_installed.stat.exists and rke2_service_status.status.ActiveState | default('') == 'active')
 
-  - name: Wait for RKE2 agent to be ready
+  - name: Wait for RKE2 agent to initialize
     ansible.builtin.pause:
-      seconds: 30
-      prompt: "Waiting for RKE2 agent to join the cluster..."
+      seconds: 20
+      prompt: "Waiting for RKE2 agent to initialize..."
+    when: not (rke2_installed.stat.exists and rke2_service_status.status.ActiveState | default('') == 'active')
+
+  - name: Check RKE2 agent service status (final check)
+    ansible.builtin.systemd:
+      name: rke2-agent
+    register: rke2_status_final
+
+  - name: Display agent status
+    ansible.builtin.debug:
+      msg:
+        - "RKE2 Agent Status: {{ rke2_status_final.status.ActiveState }}"
+        - "Service Running: {{ rke2_status_final.status.SubState }}"
+
+  - name: Fail if RKE2 agent is not running
+    ansible.builtin.fail:
+      msg: "RKE2 agent failed to start. Check logs with: journalctl -u rke2-agent -n 50"
+    when: rke2_status_final.status.ActiveState != "active"
 
   - name: Create kube directory for worker user
     ansible.builtin.file:

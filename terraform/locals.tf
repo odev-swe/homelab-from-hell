@@ -21,6 +21,7 @@ locals {
       ipconfig    = v.ipconfig
       ciuser      = v.ciuser
       cipassword  = v.cipassword
+      nameserver  = coalesce(v.nameserver, var.vm_defaults.nameserver)
       bridge      = coalesce(v.bridge, var.vm_defaults.bridge)
       network_tag = coalesce(v.network_tag, var.vm_defaults.network_tag)
       tags        = v.tags

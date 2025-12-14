@@ -79,6 +79,7 @@ variable "vm_defaults" {
     ci_storage  = string
     bridge      = string
     network_tag = number
+    nameserver  = string
     vm_state    = string
     onboot      = bool
     bios        = string
@@ -95,6 +96,7 @@ variable "vm_defaults" {
     ci_storage  = "local"
     bridge      = "vmbr0"
     network_tag = 0
+    nameserver  = "8.8.8.8 8.8.4.4"
     vm_state    = "running"
     onboot      = true
     bios        = "ovmf"
@@ -127,6 +129,7 @@ variable "vm_configs" {
     cipassword  = optional(string)
     bridge      = optional(string)
     network_tag = optional(number)
+    nameserver  = optional(string)
     tags        = optional(list(string), [])
     description = optional(string, "Managed by OpenTofu")
   }))

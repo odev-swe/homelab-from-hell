@@ -1,0 +1,121 @@
+---
+# Playbook: cleanup-orphaned-nodes.yml
+# Purpose: Remove NotReady/unreachable nodes from Kubernetes cluster
+# Usage: ansible-playbook playbooks/cleanup-orphaned-nodes.yml
+#
+# This playbook will:
+# 1. List all nodes in the cluster
+# 2. Identify NotReady or unreachable nodes
+# 3. Delete them from the cluster
+#
+# Run with --check to see what would be deleted without actually deleting
+
+- name: Cleanup Orphaned Kubernetes Nodes
+  hosts: k8s_master
+  become: yes
+  gather_facts: yes
+  vars:
+    kubeconfig_path: "/etc/rancher/rke2/rke2.yaml"
+    kubectl_cmd: "KUBECONFIG={{ kubeconfig_path }} /var/lib/rancher/rke2/bin/kubectl"
+  
+  tasks:
+    - name: Check if kubectl is available
+      stat:
+        path: /var/lib/rancher/rke2/bin/kubectl
+      register: kubectl_check
+      failed_when: false
+
+    - name: Fail if kubectl is not available
+      fail:
+        msg: "kubectl not found. Is RKE2 installed on this node?"
+      when: not kubectl_check.stat.exists
+
+    - name: Get all nodes in cluster
+      shell: "{{ kubectl_cmd }} get nodes -o json"
+      register: all_nodes
+      changed_when: false
+
+    - name: Parse node information
+      set_fact:
+        node_list: "{{ (all_nodes.stdout | from_json)['items'] }}"
+
+    - name: Display current cluster nodes
+      debug:
+        msg: |
+          Node: {{ item.metadata.name }}
+          Status: {{ item.status.conditions | selectattr('type', 'equalto', 'Ready') | map(attribute='status') | first | default('Unknown') }}
+          Age: {{ item.metadata.creationTimestamp }}
+      loop: "{{ node_list }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Get NotReady nodes (simpler approach)
+      shell: "{{ kubectl_cmd }} get nodes --no-headers | grep -v ' Ready' | awk '{print $1}' || true"
+      register: notready_nodes_list
+      changed_when: false
+
+    - name: Display NotReady nodes
+      debug:
+        msg: |
+          NotReady/Unknown nodes found:
+          {{ notready_nodes_list.stdout_lines | join('\n') }}
+      when: notready_nodes_list.stdout_lines | length > 0
+
+    - name: Confirm deletion
+      pause:
+        prompt: |
+          
+          ⚠️  WARNING: About to delete the following nodes:
+          {{ notready_nodes_list.stdout_lines | join('\n') | indent(2) }}
+          
+          This action cannot be undone!
+          
+          Type 'yes' to continue or press Ctrl+C to cancel
+      register: confirm_delete
+      when: 
+        - notready_nodes_list.stdout_lines | length > 0
+        - confirm_cleanup is not defined or not confirm_cleanup
+
+    - name: Delete NotReady nodes
+      shell: "{{ kubectl_cmd }} delete node {{ item }}"
+      loop: "{{ notready_nodes_list.stdout_lines }}"
+      when: 
+        - notready_nodes_list.stdout_lines | length > 0
+        - (confirm_delete.user_input | default('') == 'yes') or (confirm_cleanup | default('no') | bool)
+      register: delete_result
+
+    - name: Display deletion results
+      debug:
+        msg: |
+          ✅ Successfully deleted node: {{ item.item }}
+      loop: "{{ delete_result.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: 
+        - delete_result is defined
+        - delete_result.results is defined
+        - item.rc == 0
+
+    - name: Get final node list
+      shell: "{{ kubectl_cmd }} get nodes"
+      register: final_nodes
+      changed_when: false
+      when: delete_result is defined and delete_result.results is defined
+
+    - name: Display final cluster state
+      debug:
+        msg: |
+          
+          ====================================
+          Final Cluster State:
+          ====================================
+          {{ final_nodes.stdout }}
+      when: final_nodes is defined and final_nodes.stdout is defined
+
+    - name: No orphaned nodes found
+      debug:
+        msg: |
+          
+          ✅ No NotReady or orphaned nodes found.
+          Cluster is healthy!
+      when: notready_nodes_list.stdout_lines | length == 0

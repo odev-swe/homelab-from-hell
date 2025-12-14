@@ -85,6 +85,37 @@ join-worker:
 	fi
 	@ansible-playbook playbooks/join-rke2-workers.yml --limit $(NODE)
 
+# Remove worker nodes from cluster
+remove-workers:
+	@echo "Removing worker nodes from RKE2 cluster..."
+	@echo "⚠️  This will drain, delete, and uninstall RKE2 from all worker nodes!"
+	@ansible-playbook playbooks/remove-rke2-workers.yml
+
+# Remove specific worker node
+remove-worker:
+	@echo "Usage: make remove-worker NODE=k8s-worker-1"
+	@if [ -z "$(NODE)" ]; then \
+		echo "Error: Please specify NODE=<hostname>"; \
+		exit 1; \
+	fi
+	@echo "⚠️  This will remove $(NODE) from the cluster!"
+	@ansible-playbook playbooks/remove-rke2-workers.yml --limit $(NODE)
+
+# Remove workers without confirmation (use with caution!)
+remove-workers-force:
+	@echo "Force removing worker nodes from RKE2 cluster..."
+	@ansible-playbook playbooks/remove-rke2-workers.yml -e "confirm_removal=yes"
+
+# Clean up orphaned/NotReady nodes from cluster
+cleanup-nodes:
+	@echo "Cleaning up orphaned nodes from cluster..."
+	@ansible-playbook playbooks/cleanup-orphaned-nodes.yml
+
+# Clean up orphaned nodes without confirmation
+cleanup-nodes-force:
+	@echo "Force cleaning up orphaned nodes..."
+	@ansible-playbook playbooks/cleanup-orphaned-nodes.yml -e "confirm_cleanup=yes"
+
 # =============================================================================
 # Tailscale VPN Management
 # =============================================================================

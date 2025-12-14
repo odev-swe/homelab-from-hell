@@ -40,6 +40,79 @@
         group: root
         mode: '0644'
 
+    - name: Create RKE2 manifests directory
+      ansible.builtin.file:
+        path: /var/lib/rancher/rke2/server/manifests
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Configure Cilium with Hubble and LoadBalancer (HelmChartConfig)
+      ansible.builtin.copy:
+        content: |
+          ---
+          apiVersion: helm.cattle.io/v1
+          kind: HelmChartConfig
+          metadata:
+            name: rke2-cilium
+            namespace: kube-system
+          spec:
+            valuesContent: |-
+              hubble:
+                enabled: true
+                relay:
+                  enabled: true
+                ui:
+                  enabled: true
+              
+              # LoadBalancer & IPAM Configuration
+              l2announcements:
+                enabled: true
+              
+              # Enable BGP Control Plane for advanced routing (optional)
+              bgpControlPlane:
+                enabled: false
+              
+              # ExternalIPs support
+              externalIPs:
+                enabled: true
+              
+              # LoadBalancer IP pool configuration
+              # You need to create CiliumLoadBalancerIPPool and CiliumL2AnnouncementPolicy separately
+        dest: /var/lib/rancher/rke2/server/manifests/rke2-cilium-config.yaml
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Configure Cilium LoadBalancer IP Pool
+      ansible.builtin.copy:
+        content: |
+          ---
+          apiVersion: cilium.io/v2alpha1
+          kind: CiliumLoadBalancerIPPool
+          metadata:
+            name: homelab-lb-pool
+          spec:
+            blocks:
+            - start: "192.168.100.200"
+              stop: "192.168.100.250"
+          ---
+          apiVersion: cilium.io/v2alpha1
+          kind: CiliumL2AnnouncementPolicy
+          metadata:
+            name: homelab-l2-policy
+          spec:
+            loadBalancerIPs: true
+            interfaces:
+            - eth0
+            nodeSelector:
+              matchLabels: {}
+        dest: /var/lib/rancher/rke2/server/manifests/cilium-lb-pool.yaml
+        owner: root
+        group: root
+        mode: '0644'
+
     - name: Download RKE2 installer script
       ansible.builtin.get_url:
         url: "https://get.rke2.io"

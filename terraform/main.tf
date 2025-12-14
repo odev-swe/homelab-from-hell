@@ -33,10 +33,12 @@ resource "proxmox_vm_qemu" "vms" {
 
   # Cloud-Init Configuration
   ipconfig0  = each.value.ipconfig
+  nameserver = each.value.nameserver
   skip_ipv6  = true
   ciuser     = each.value.ciuser
   cipassword = each.value.cipassword != null ? each.value.cipassword : ""
-  sshkeys    = file(var.ssh_public_key_path)
+
+  sshkeys = file(var.ssh_public_key_path)
 
   # Tags
   tags = join(";", local.vm_tags[each.key])
