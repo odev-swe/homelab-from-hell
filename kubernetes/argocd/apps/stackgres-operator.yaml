@@ -9,12 +9,6 @@ spec:
     - repoURL: https://stackgres.io/downloads/stackgres-k8s/stackgres/helm/
       chart: stackgres-operator
       targetRevision: 1.18.3
-      helm:
-        valueFiles:
-          - $values/kubernetes/argocd/helm-charts/stackgres/values.yaml
-    - repoURL: https://github.com/odev-swe/homelab-from-hell.git
-      targetRevision: main
-      ref: values
 
   destination:
     server: https://kubernetes.default.svc
