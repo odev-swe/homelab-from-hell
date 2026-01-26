@@ -13,7 +13,7 @@ spec:
         valueFiles:
           - $values/kubernetes/argocd/helm-charts/stackgres/values.yaml
     - repoURL: https://github.com/odev-swe/homelab-from-hell.git
-      targetRevision: HEAD
+      targetRevision: main
       ref: values
 
   destination:
