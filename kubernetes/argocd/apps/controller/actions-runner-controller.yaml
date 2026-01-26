@@ -11,7 +11,7 @@ spec:
       targetRevision: 0.23.7
       helm:
         valueFiles:
-          - $values/kubernetes/helm-charts/actions-runner-controller/values.yaml
+          - $values/kubernetes/argocd/helm-charts/actions-runner-controller/values.yaml
 
     - repoURL: https://github.com/odev-swe/homelab-from-hell
       targetRevision: main
