@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fireflyiii
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: thejoos-firefly-pvc
+  namespace: fireflyiii
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 8Gi
+  selector:
+    matchLabels:
+      type: nfs
+      app: firefly
+      storage: nfs-firefly
+  storageClassName: nfs-firefly-csi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: thejoos-firefly-pv
+  labels:
+    type: nfs
+    app: firefly
+    storage: nfs-firefly
+spec:
+  capacity:
+    storage: 8Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-firefly-csi
+  csi:
+    driver: nfs.csi.k8s.io
+    volumeHandle: thejoos-firefly-pv
+    volumeAttributes:
+      server: 192.168.100.44
+      share: /mnt/thejoos-drive/stackgres/pg-firefly
