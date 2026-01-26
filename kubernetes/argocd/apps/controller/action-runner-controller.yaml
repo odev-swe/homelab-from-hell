@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: action-runner-controller
+  namespace: argocd
+spec:
+  project: infrastructure
+  sources:
+    - repoURL: https://actions-runner-controller.github.io/actions-runner-controller
+      chart: actions-runner-controller
+      targetRevision: 0.23.7
+      helm:
+        valueFiles:
+          - $values/kubernetes/helm-charts/action-runner-controller/values.yaml
+
+    - repoURL: https://github.com/odev-swe/homelab-from-hell
+      targetRevision: main
+      ref: values
+        
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: action-runner-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

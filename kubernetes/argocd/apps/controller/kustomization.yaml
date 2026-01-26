@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - csi-nfs-driver.yaml
   - stackgres-operator.yaml
+  - action-runner-controller.yaml
