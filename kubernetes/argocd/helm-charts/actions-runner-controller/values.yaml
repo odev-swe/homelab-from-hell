@@ -2,3 +2,5 @@ runnerGithubURL: https://github.com/odev-swe/blessed-v2
 
 authSecret:
   create: true
+
+certManagerEnabled: false
