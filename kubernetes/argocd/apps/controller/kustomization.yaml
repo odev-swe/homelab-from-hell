@@ -5,3 +5,4 @@ resources:
   - csi-nfs-driver.yaml
   - stackgres-operator.yaml
   - actions-runner-controller.yaml
+  - cert-manager.yaml
