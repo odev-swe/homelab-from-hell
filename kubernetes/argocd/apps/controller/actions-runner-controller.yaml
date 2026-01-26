@@ -13,7 +13,7 @@ spec:
         valueFiles:
           - $values/kubernetes/argocd/helm-charts/actions-runner-controller/values.yaml
 
-    - repoURL: https://github.com/odev-swe/homelab-from-hell
+    - repoURL: https://github.com/odev-swe/homelab-from-hell.git
       targetRevision: main
       ref: values
         
