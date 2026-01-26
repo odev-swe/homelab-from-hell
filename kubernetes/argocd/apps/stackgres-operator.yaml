@@ -8,7 +8,7 @@ spec:
   sources:
     - repoURL: https://stackgres.io/downloads/stackgres-k8s/stackgres/helm/
       chart: stackgres-operator
-      targetRevision: 1.18.3
+      targetRevision: 1.18.2
 
   destination:
     server: https://kubernetes.default.svc
