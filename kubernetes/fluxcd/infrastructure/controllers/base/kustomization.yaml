@@ -4,3 +4,4 @@ resources:
   - stackgres-operator.yaml
   - cert-manager.yaml
   - arc.yaml
+  - blessed.yaml
