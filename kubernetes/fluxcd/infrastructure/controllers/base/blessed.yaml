@@ -1,28 +1,42 @@
-apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
 metadata:
   name: blessed
   namespace: blessed
 spec:
+  image: ghcr.io/odev-swe/charts
   interval: 24h
-  type: oci
-  url: oci://ghcr.io/odev-swe/charts
   secretRef:
     name: ghcr-secret
 ---
-apiVersion: helm.toolkit.fluxcd.io/v2
-kind: HelmRelease
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
 metadata:
   name: blessed
   namespace: blessed
 spec:
-  interval: 30m
-  chart:
-    spec:
-      chart: blessed-helm-chart
-      version: "0.1.0-015d52c"
-      sourceRef:
-        kind: HelmRepository
-        name: blessed
-        namespace: blessed
-      interval: 12h
+  imageRepositoryRef:
+    name: blessed
+  filterTags:
+    pattern: "^0.x-.*"
+  policy:
+    semver:
+      # image semver will be like 0.1.0-short-sha
+      range: "^0.x-.*"
+# ---
+# apiVersion: helm.toolkit.fluxcd.io/v2
+# kind: HelmRelease
+# metadata:
+#   name: blessed
+#   namespace: blessed
+# spec:
+#   interval: 30m
+#   chart:
+#     spec:
+#       chart: blessed-helm-chart
+#       version: "0.1.0-015d52c"
+#       sourceRef:
+#         kind: HelmRepository
+#         name: blessed
+#         namespace: blessed
+#       interval: 12h
