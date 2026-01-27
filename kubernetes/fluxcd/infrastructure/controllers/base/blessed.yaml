@@ -6,7 +6,7 @@ metadata:
 spec:
   interval: 24h
   type: oci
-  url: oci://ghcr.io/odev-swe/charts/blessed-helm-chart
+  url: oci://ghcr.io/odev-swe/charts
   secretRef:
     name: ghcr-secret
 ---
