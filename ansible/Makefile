@@ -71,6 +71,17 @@ install-k8s:
 	@echo "Installing RKE2 Kubernetes cluster (master node)..."
 	ansible-playbook playbooks/install-rke2-cluster.yml
 
+# Install RKE2 cluster without CNI (manual CNI install required later)
+install-k8s-no-cni:
+	@echo "Installing RKE2 Kubernetes cluster (master node) without CNI..."
+	@echo "⚠️  Nodes will remain in 'NotReady' state until a CNI is installed!"
+	ansible-playbook playbooks/install-rke2-cluster-no-cni.yml
+
+# Fetch kubeconfig from master node
+fetch-kubeconfig:
+	@echo "Fetching kubeconfig from master node..."
+	ansible-playbook playbooks/fetch-kubeconfig.yml
+
 # Join worker nodes to RKE2 cluster
 join-workers:
 	@echo "Joining worker nodes to RKE2 cluster..."
