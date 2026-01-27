@@ -8,7 +8,7 @@ spec:
   type: oci
   url: oci://ghcr.io/odev-swe/charts/blessed-helm-chart
   secretRef:
-    name: ghcr-registry
+    name: ghcr-secret
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
