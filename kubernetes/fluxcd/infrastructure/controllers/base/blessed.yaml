@@ -22,7 +22,7 @@ spec:
   policy:
     semver:
       # image semver will be like 1.0.0
-      range: "^1.x-.*"
+      range: "1.x"
 # ---
 # apiVersion: helm.toolkit.fluxcd.io/v2
 # kind: HelmRelease
