@@ -1,4 +1,0 @@
-authSecret:
-  create: true
-
-certManagerEnabled: false

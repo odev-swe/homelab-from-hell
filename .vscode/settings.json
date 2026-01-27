@@ -1,3 +1,6 @@
 {
-    "ansible.python.interpreterPath": "/usr/sbin/python"
+    "ansible.python.interpreterPath": "/usr/sbin/python",
+    "yaml.schemas": {
+        "https://www.schemastore.org/yamllint.json": "file:///home/odev/personal/homelab-from-hell/kubernetes/fluxcd/cluster/homelab/infra.yaml"
+    }
 }
