@@ -33,7 +33,7 @@ spec:
   interval: 30m
   sourceRef:
     kind: GitRepository
-    name: blessed
+    name: flux-system
   git:
     checkout:
       ref:
