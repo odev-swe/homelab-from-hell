@@ -23,20 +23,57 @@ spec:
     semver:
       # image semver will be like 1.0.0
       range: "1.x"
-# ---
-# apiVersion: helm.toolkit.fluxcd.io/v2
-# kind: HelmRelease
-# metadata:
-#   name: blessed
-#   namespace: blessed
-# spec:
-#   interval: 30m
-#   chart:
-#     spec:
-#       chart: blessed-helm-chart
-#       version: "0.1.0-015d52c"
-#       sourceRef:
-#         kind: HelmRepository
-#         name: blessed
-#         namespace: blessed
-#       interval: 12h
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageUpdateAutomation
+metadata:
+  name: blessed
+  namespace: blessed
+spec:
+  interval: 30m
+  sourceRef:
+    kind: GitRepository
+    name: blessed
+  git:
+    checkout:
+      ref:
+        branch: main
+    commit:
+      author:
+        email: fluxcdbot@users.noreply.github.com
+        name: fluxcdbot
+      messageTemplate: '{{range .Changed.Changes}}{{print .OldValue}} -> {{println .NewValue}}{{end}}'
+    push:
+      branch: main
+  update:
+    path: ./kubernetes/fluxcd/infrastructure/controllers/base
+    strategy: Setters
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: blessed
+  namespace: blessed
+spec:
+  interval: 24h
+  type: oci
+  url: oci://ghcr.io/odev-swe/charts
+  secretRef:
+    name: ghcr-secret
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: blessed
+  namespace: blessed
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: blessed-helm-chart
+      version: "0.1.0-015d52c" # {"$imagepolicy": "blessed:blessed:tag"}
+      sourceRef:
+        kind: HelmRepository
+        name: blessed
+        namespace: blessed
+      interval: 12h
