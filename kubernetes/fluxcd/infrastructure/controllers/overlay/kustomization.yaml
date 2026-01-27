@@ -4,7 +4,7 @@ resources:
   - ../base
 
 patchesStrategicMerge:
-  # - arc-patch.yaml
+  - arc-patch.yaml
   - cert-manager-patch.yaml
 
   
