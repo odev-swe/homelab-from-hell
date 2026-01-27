@@ -72,7 +72,7 @@ spec:
   chart:
     spec:
       chart: blessed-helm-chart
-      version: "0.1.0-015d52c" # {"$imagepolicy": "blessed:blessed:tag"}
+      version: "1.0.0" # {"$imagepolicy": "blessed:blessed:tag"}
       sourceRef:
         kind: HelmRepository
         name: blessed
