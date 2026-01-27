@@ -4,7 +4,7 @@ metadata:
   name: blessed
   namespace: blessed
 spec:
-  image: ghcr.io/odev-swe/charts
+  image: ghcr.io/odev-swe/blessed-helm-chart
   interval: 24h
   secretRef:
     name: ghcr-secret
