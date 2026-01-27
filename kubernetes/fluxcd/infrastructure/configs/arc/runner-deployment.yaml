@@ -4,7 +4,7 @@ metadata:
   name: blessed-v2-runner
   namespace: arc
 spec:
-  replicas: 1
+  replicas: 2
   template:
     spec:
       repository: odev-swe/blessed-v2
