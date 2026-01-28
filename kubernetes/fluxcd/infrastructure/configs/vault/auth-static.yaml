@@ -8,7 +8,7 @@ spec:
   method: kubernetes
   mount: kubernetes
   kubernetes:
-    role: k8s-auth 
+    role: k8s-role
     serviceAccount: cert-manager
     audiences:
       - vault
