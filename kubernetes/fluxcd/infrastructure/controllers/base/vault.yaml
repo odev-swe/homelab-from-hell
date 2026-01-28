@@ -41,21 +41,7 @@ spec:
         enabled: true
         replicas: 2
 
-        raft:
-          enabled: true
-          setNodeId: true
-
-      dataStorage:
-        enabled: true
-        size: 10Gi
-        storageClass: nfs-vault-csi
-
-      auditStorage:
-        enabled: true
-        size: 10Gi
-        storageClass: nfs-vault-csi
-
-      config: |
+        config: |
           ui = true
 
           listener "tcp" {
@@ -74,3 +60,17 @@ spec:
           }
 
           service_registration "kubernetes" {}
+
+        raft:
+          enabled: true
+          setNodeId: true
+
+      dataStorage:
+        enabled: true
+        size: 10Gi
+        storageClass: nfs-vault-csi
+
+      auditStorage:
+        enabled: true
+        size: 10Gi
+        storageClass: nfs-vault-csi
