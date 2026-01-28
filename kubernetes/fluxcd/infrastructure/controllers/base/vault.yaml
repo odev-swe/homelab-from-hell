@@ -28,8 +28,6 @@ spec:
     server:
       extraEnvironmentVars:
         AWS_REGION: "ap-southeast-5"
-        AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
-        AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
         
       extraSecretEnvironmentVars:
         - envName: AWS_ACCESS_KEY_ID
