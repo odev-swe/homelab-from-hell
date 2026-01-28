@@ -26,6 +26,19 @@ spec:
       interval: 12h
   values:
     server:
+      extraEnvironmentVars:
+        AWS_REGION: "ap-southeast-5"
+        AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
+        AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
+        
+      extraSecretEnvironmentVars:
+        - envName: AWS_ACCESS_KEY_ID
+          secretName: vault-aws-kms
+          secretKey: AWS_ACCESS_KEY_ID
+        - envName: AWS_SECRET_ACCESS_KEY
+          secretName: vault-aws-kms
+          secretKey: AWS_SECRET_ACCESS_KEY
+      
       ha:
         enabled: true
         replicas: 2
@@ -43,3 +56,23 @@ spec:
         enabled: true
         size: 10Gi
         storageClass: nfs-vault-csi
+
+      config: |
+          ui = true
+
+          listener "tcp" {
+            tls_disable = 1
+            address = "[::]:8200"
+            cluster_address = "[::]:8201"
+          }
+          storage "consul" {
+            path = "vault"
+            address = "HOST_IP:8500"
+          }
+
+          seal "awskms" {
+            region = "ap-southeast-5"
+            kms_key_id = "19ab179d-773d-4d1d-ba69-022b0fea9ec4"
+          }
+
+          service_registration "kubernetes" {}
