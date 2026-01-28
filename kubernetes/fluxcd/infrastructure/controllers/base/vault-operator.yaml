@@ -1,0 +1,35 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: hashicorp-vault-operator
+  namespace: hashicorp-vault
+spec:
+  suspend: false
+  interval: 30m
+  chart:
+    spec:
+      chart: vault-secrets-operator
+      version: "0.10.0"
+      sourceRef:
+        kind: HelmRepository
+        name: hashicorp
+        namespace: hashicorp-vault
+      interval: 12h
+  values:
+    defaultVaultConnection:
+      enabled: true
+      address: "http://hashicorp-vault.hashicorp-vault.svc.cluster.local:8200"
+      skipTLSVerify: false
+    controller:
+      manager:
+        clientCache:
+          persistenceModel: direct-encrypted
+          storageEncryption:
+            enabled: true
+            mount: kubernetes
+            keyName: vso-client-cache
+            transitMount: kubernetes-transit
+            kubernetes:
+              role: hashicorp-vault-operator-vault-secrets-operator-leader-election-role
+              serviceAccount: hashicorp-vault-operator-vault-secrets-operator-controller-manager
+              tokenAudiences: ["vault"]

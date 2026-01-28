@@ -8,3 +8,4 @@ resources:
   - cloudflared.yaml
   - efs-provisioner.yaml
   - vault.yaml
+  - vault-operator.yaml
