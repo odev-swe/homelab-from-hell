@@ -10,3 +10,12 @@ spec:
         name: cloudflared-credentials
       existingPemFileSecret:
         name: cert-pem-file-secret
+
+    tunnelConfig:
+      name: porkbun-homelab
+    
+    ingress:
+      - hostname: "truenas.porkbunlab.com"
+        service: "http://192.168.100.44:80"
+
+      - service: "http_status:404"
