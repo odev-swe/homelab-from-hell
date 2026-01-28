@@ -18,7 +18,7 @@ spec:
   chart:
     spec:
       chart: vault
-      version: "0.30.0"
+      version: "0.32.0"
       sourceRef:
         kind: HelmRepository
         name: hashicorp
@@ -35,6 +35,11 @@ spec:
           setNodeId: true
 
       dataStorage:
+        enabled: true
+        size: 10Gi
+        storageClass: nfs-vault-csi
+
+      auditStorage:
         enabled: true
         size: 10Gi
         storageClass: nfs-vault-csi
