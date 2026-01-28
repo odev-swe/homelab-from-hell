@@ -16,6 +16,6 @@ spec:
     
     ingress:
       - hostname: "truenas.porkbunlab.com"
-        service: "https://192.168.100.44"
+        service: "http://hubble-ui.kube-system.svc.cluster.local:80"
 
       - service: "http_status:404"
