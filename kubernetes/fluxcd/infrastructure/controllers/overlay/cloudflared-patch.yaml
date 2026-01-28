@@ -16,6 +16,6 @@ spec:
     
     ingress:
       - hostname: "truenas.porkbunlab.com"
-        service: "http://hubble-ui.kube-system.svc.cluster.local:80"
+        service: "https://google.com"
 
       - service: "http_status:404"
