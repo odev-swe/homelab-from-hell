@@ -6,5 +6,6 @@ resources:
 patchesStrategicMerge:
   - arc-patch.yaml
   - cert-manager-patch.yaml
+  - cloudflared-patch.yaml
 
   

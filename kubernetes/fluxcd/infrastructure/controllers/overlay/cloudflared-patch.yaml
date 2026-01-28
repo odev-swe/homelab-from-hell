@@ -1,0 +1,30 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cloudflared
+  namespace: cloudflared
+spec:
+  values:
+    tunnel:
+      name: porkbun-homelab
+      credentialsSecret: cloudflared-credentials
+
+config:
+  enabled: true
+  content: |
+    tunnel: porkbun-homelab
+    credentials-file: /etc/cloudflared/creds/credentials.json
+
+    ingress:
+      - hostname: truenas.porkbunlab.com
+        service: http://192.168.100.44:80
+
+replicaCount: 2
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi

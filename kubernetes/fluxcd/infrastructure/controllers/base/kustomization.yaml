@@ -5,3 +5,4 @@ resources:
   - cert-manager.yaml
   - arc.yaml
   - blessed.yaml
+  - cloudflared.yaml
