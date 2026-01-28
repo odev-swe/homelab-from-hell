@@ -6,7 +6,7 @@ spec:
   acme:
     email: odevswe@gmail.com
     privateKeySecretRef:
-      name: cloudflare-api-token-secret
+      name: letsencrypt-prod
     server: https://acme-v02.api.letsencrypt.org/directory
     solvers:
       - dns01:
