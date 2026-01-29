@@ -1,0 +1,52 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-postgres-csi
+provisioner: nfs.csi.k8s.io
+parameters:
+  server: 192.168.100.44
+  share: /mnt/thejoos-drive/stackgres/pg
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
+---
+# create a pvc
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: postgres
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 8Gi
+  selector:
+    matchLabels:
+      type: nfs
+      app: postgres
+      storage: nfs-postgres
+  storageClassName: nfs-postgres-csi
+---
+# create a pv
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: postgres-pv
+  labels:
+    type: nfs
+    app: postgres
+    storage: nfs-postgres
+spec:
+  capacity:
+    storage: 8Gi 
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-postgres-csi
+  csi:
+    driver: nfs.csi.k8s.io
+    volumeHandle: postgres-pv
+    volumeAttributes:
+      server: 192.168.100.44
+      share: /mnt/thejoos-drive/stackgres/pg
