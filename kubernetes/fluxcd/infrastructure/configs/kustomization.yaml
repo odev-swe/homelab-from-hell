@@ -6,4 +6,4 @@ resources:
   - ./vault
   - ./cm
   - ./gateway
-  # - ./pg
+  - ./pg
