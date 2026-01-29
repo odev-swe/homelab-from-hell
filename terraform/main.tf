@@ -75,6 +75,15 @@ resource "proxmox_vm_qemu" "vms" {
           replicate = true
         }
       }
+      scsi1 {
+        disk {
+          size      = "100G"
+          storage   = "local-hdd"
+          cache     = "writeback"
+          discard   = true
+          replicate = true
+        }
+      }
     }
     ide {
       ide0 {
