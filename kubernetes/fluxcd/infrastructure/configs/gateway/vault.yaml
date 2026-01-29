@@ -8,6 +8,9 @@ metadata:
     cert-manager.io/cluster-issuer: cloudflare-dns
 spec:
   gatewayClassName: cilium
+  addresses:
+    - type: IPAddress
+      value: 192.168.100.200
   listeners:
     - name: https
       port: 443
