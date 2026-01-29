@@ -23,7 +23,7 @@ spec:
   pods:
     persistentVolume:
       size: '8Gi'
-      storageClassName: 'nfs-postgres-csi'
+      storageClass: 'nfs-postgres-csi'
     # scheduling:
     #   tolerations:
     #     - effect: NoSchedule
