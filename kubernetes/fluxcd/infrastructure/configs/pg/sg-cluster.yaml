@@ -13,11 +13,11 @@ spec:
         prometheus.io/path: "/metrics"
   postgres:
     version: '18'
-    # extensions:
-    # - name: 'hstore'
-    #   version: '1.8'
-    # - name: 'pg_stat_statements'
-    #   version: '1.11'
+    extensions:
+    - name: 'hstore'
+      version: '1.8'
+    - name: 'pg_stat_statements'
+      version: '1.11'
   instances: 2
   sgInstanceProfile: 'size-m'
   pods:
