@@ -7,6 +7,6 @@ resources:
   - blessed.yaml
   - cloudflared.yaml
   # - efs-provisioner.yaml
-  - longhorn.yaml
+  # - longhorn.yaml
   # - vault.yaml
   # - vault-operator.yaml
