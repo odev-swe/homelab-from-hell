@@ -9,7 +9,20 @@ metadata:
 spec:
   gatewayClassName: cilium
   listeners:
-    - name: https
+    - name: nginx-https
+      port: 443
+      protocol: HTTPS
+      hostname: porkbunlab.com
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: nginx-tls
+        mode: Terminate
+    - name: vault-https
       port: 443
       protocol: HTTPS
       hostname: vault.porkbunlab.com
@@ -43,3 +56,24 @@ spec:
         - name: hashicorp-vault
           port: 8200
           namespace: hashicorp-vault
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: nginx-route
+  namespace: nginx
+spec:
+  parentRefs:
+    - name: all-in-one-gateway
+      namespace: kube-system
+  hostnames:
+    - porkbunlab.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: nginx
+          port: 80
+          namespace: nginx
