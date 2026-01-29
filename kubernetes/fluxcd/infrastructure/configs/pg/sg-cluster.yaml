@@ -18,6 +18,8 @@ spec:
       version: '1.8'
     - name: 'pg_stat_statements'
       version: '1.11'
+    - name: 'pgcrypto'
+      version: '1.4'
   instances: 1
   sgInstanceProfile: 'size-m'
   pods:
