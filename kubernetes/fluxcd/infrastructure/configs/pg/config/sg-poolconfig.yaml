@@ -9,7 +9,7 @@ spec:
       pgbouncer:
         # Connection pooling mode: 'session' keeps connection for entire client session
         # Alternatives: 'transaction' (faster, breaks session features) or 'statement' (breaks more features)
-        pool_mode: session
+        pool_mode: transaction
 
         # Maximum client connections to PgBouncer; should be higher than backend max_connections
         # Allows connection queuing when backend is at capacity
@@ -30,15 +30,15 @@ spec:
 
         # Disconnect idle server connections after 120 seconds to free up backend resources
         # Balances connection reuse with resource conservation
-        server_idle_timeout: '120'
+        server_idle_timeout: '600'
 
         # Disconnect idle client connections after 30 seconds to prevent resource hogging
         # Lower than server timeout to aggressively reclaim client slots
-        client_idle_timeout: '30'
+        client_idle_timeout: '600'
 
         # Maximum time (seconds) client waits for server connection from pool before timeout
         # 300s = 5 minutes; prevents indefinite waiting during high load
-        query_wait_timeout: '300'
+        query_wait_timeout: '60'
       databases:
         postgres:
           # Small pool for admin/maintenance tasks; not for application workload

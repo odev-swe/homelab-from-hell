@@ -62,7 +62,7 @@ spec:
     log_disconnections: 'on'
 
     # Terminate idle transactions after 600 seconds (10 minutes); prevents lock holding and bloat
-    idle_in_transaction_session_timeout: '600000'
+    idle_in_transaction_session_timeout: '0'
 
     # Spread checkpoint writes over 90% of checkpoint interval; reduces I/O spikes
     checkpoint_completion_target: '0.9'
