@@ -1,0 +1,64 @@
+---
+apiVersion: stackgres.io/v1
+kind: SGCluster
+metadata:
+  namespace: postgres
+  name: postgres
+spec:
+  metadata:
+    annotations:
+      clusterPods:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9187"
+        prometheus.io/path: "/metrics"
+  postgres:
+    version: '18'
+    # extensions:
+    # - name: 'hstore'
+    #   version: '1.8'
+    # - name: 'pg_stat_statements'
+    #   version: '1.11'
+  instances: 2
+  sgInstanceProfile: 'size-m'
+  pods:
+    persistentVolume:
+      size: '8Gi'
+      storageClassName: 'nfs-postgres-csi'
+    # scheduling:
+    #   tolerations:
+    #     - effect: NoSchedule
+    #       key: application
+    #       operator: Equal
+    #       value: tsdb-poc
+    #   nodeAffinity:
+    #     requiredDuringSchedulingIgnoredDuringExecution:
+    #       nodeSelectorTerms:
+    #         - matchExpressions:
+    #             - key: application
+    #               operator: In
+    #               values:
+    #                 - tsdb-poc
+  configurations:
+    sgPostgresConfig: 'pgconfig'
+    sgPoolingConfig: 'poolconfig'
+    observability:
+      prometheusAutobind: true
+    # backups:
+    # - sgObjectStorage: 'insight-tsdb-object-storage'
+    #   cronSchedule: '0 16 * * *' # means utc+8 00:00 daily
+    #   retention: 30
+    #   compression: lz4
+    #   performance:
+    #     maxDiskBandwidth: 200000000   # 200 MB/s
+    #     maxNetworkBandwidth: 400000000 # 400 MB/s
+    #     uploadDiskConcurrency: 4
+  # distributedLogs:
+  #   sgDistributedLogs: 'distributedlogs'
+  # managedSql:
+  #   scripts:
+  #     - sgScript: create-db-script
+  postgresServices:
+    primary:
+      type: ClusterIP
+    replicas:
+      type: ClusterIP

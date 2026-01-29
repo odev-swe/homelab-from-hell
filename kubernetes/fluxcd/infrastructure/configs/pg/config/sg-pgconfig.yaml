@@ -1,0 +1,115 @@
+apiVersion: stackgres.io/v1
+kind: SGPostgresConfig
+metadata:
+  namespace: postgres
+  name: pgconfig
+spec:
+  postgresVersion: "18"
+  postgresql.conf:
+    # Memory Configuration for 1 vCPU, 2GB RAM
+    # Rule: 25% of total RAM for shared memory cache used by all connections
+    shared_buffers: '512MB'
+
+    # Cost estimation for random page access; 1.0 for SSD/NVMe storage (lower = faster random access assumed)
+    random_page_cost: '1'
+
+    # Time between automatic WAL checkpoints; longer interval reduces I/O but increases recovery time
+    checkpoint_timeout: '15min'
+
+    # Maximum number of concurrent connections; adjust based on application needs and connection pooling
+    max_connections: '100'
+
+    # Memory per sort/hash operation per connection; total can be max_connections * work_mem, so keep conservative
+    work_mem: '4MB'
+
+    # Planner's assumption of kernel and PostgreSQL cache size; typically 50-75% of total RAM
+    effective_cache_size: '1536MB'
+
+    # Maximum WAL size before forced checkpoint; larger values reduce checkpoint frequency but increase recovery time
+    max_wal_size: '1GB'
+
+    # Minimum WAL size to maintain; prevents excessive WAL file creation/deletion cycles
+    min_wal_size: '80MB'
+
+    # Maximum background worker processes; should match vCPU count for parallel query execution
+    max_worker_processes: '1'
+
+    # Maximum parallel workers per query gather node; typically 2-4 for balanced query performance
+    max_parallel_workers_per_gather: '0'
+
+    # Total parallel workers across all queries; should not exceed max_worker_processes
+    max_parallel_workers: '0'
+
+    # Vacuum triggers when table changes exceed 5% of rows; more aggressive cleaning for high-write workloads
+    autovacuum_vacuum_scale_factor: '0.05'
+
+    # Analyze triggers when table changes exceed 2% of rows; keeps query planner statistics fresh
+    autovacuum_analyze_scale_factor: '0.02'
+
+    # Concurrent autovacuum workers; typically 2-4 for m6a.xlarge to avoid resource contention
+    autovacuum_max_workers: '2'
+
+    # Log queries taking longer than 1000ms (1 second); useful for identifying slow queries
+    log_min_duration_statement: '1000'
+
+    # Log checkpoint events for monitoring database write activity and tuning checkpoint settings
+    log_checkpoints: 'on'
+
+    # Log all new client connections for security auditing and connection tracking
+    log_connections: 'on'
+
+    # Log client disconnections for session analysis and connection pool monitoring
+    log_disconnections: 'on'
+
+    # Terminate idle transactions after 600 seconds (10 minutes); prevents lock holding and bloat
+    idle_in_transaction_session_timeout: '600000'
+
+    # Spread checkpoint writes over 90% of checkpoint interval; reduces I/O spikes
+    checkpoint_completion_target: '0.9'
+
+    # Number of statistics samples for query planner; higher values improve plan accuracy for complex queries
+    default_statistics_target: '100'
+
+    # Allow hot standby to send feedback about queries to primary; prevents premature WAL cleanup
+    hot_standby_feedback: 'on'
+
+    # Log destination and format
+    log_line_prefix: '%m [%p] %u@%d [%a] '
+
+    # Preload pg_repack extension at server start for online table reorganization capabilities
+    shared_preload_libraries: ''
+
+    # pgAudit extension for detailed session and object audit logging
+    pgaudit.log: 'all'
+
+    pgaudit.log_catalog: 'off'
+
+    # Maximum logical replication worker processes; for replication slots and subscriptions
+    max_logical_replication_workers: '1'
+
+    # Parallel workers per subscription for faster replication catchup
+    max_sync_workers_per_subscription: '1'
+
+    # Enable automatic vacuum process to prevent transaction ID wraparound and table bloat
+    autovacuum: 'on'
+
+    # Parallel workers for maintenance operations (VACUUM, CREATE INDEX); typically vCPU count or vCPU/2
+    max_parallel_maintenance_workers: '1'
+
+    # Memory for maintenance operations; typically 5-10% of RAM for VACUUM and index creation
+    maintenance_work_mem: '128MB'
+
+    # Cost-based delay for vacuum to limit I/O impact; higher values = less throttling
+    vacuum_cost_limit: '1000'
+
+    # Cost limit specifically for autovacuum workers; allows independent tuning from manual VACUUM
+    autovacuum_vacuum_cost_limit: '1000'
+
+    # Threshold for genetic query optimization; switches to GEQO for joins with more than 16 tables
+    geqo_threshold: '16'
+
+    # Limit on flattening explicit JOIN constructs; prevents excessive planning time for complex joins
+    join_collapse_limit: '16'
+
+    # Maximum age before forcing autovacuum for transaction ID wraparound prevention
+    autovacuum_freeze_max_age: '500000000'

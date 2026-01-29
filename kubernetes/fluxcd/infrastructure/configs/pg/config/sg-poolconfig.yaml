@@ -1,0 +1,51 @@
+apiVersion: stackgres.io/v1
+kind: SGPoolingConfig
+metadata:
+  name: poolconfig
+  namespace: postgres
+spec:
+  pgBouncer:
+    pgbouncer.ini:
+      pgbouncer:
+        # Connection pooling mode: 'session' keeps connection for entire client session
+        # Alternatives: 'transaction' (faster, breaks session features) or 'statement' (breaks more features)
+        pool_mode: session
+
+        # Maximum client connections to PgBouncer; should be higher than backend max_connections
+        # Allows connection queuing when backend is at capacity
+        max_client_conn: '2000'
+
+        # Default number of server connections per database pool when not specified per-database
+        # Conservative default for databases without explicit pool_size configuration
+        default_pool_size: '100'
+
+        # Log new client connections to PgBouncer for connection tracking and debugging
+        log_connections: '1'
+
+        # Log client disconnections for session analysis and troubleshooting
+        log_disconnections: '1'
+
+        # Periodically log statistics about pools, clients, and servers for monitoring
+        log_stats: '1'
+
+        # Disconnect idle server connections after 120 seconds to free up backend resources
+        # Balances connection reuse with resource conservation
+        server_idle_timeout: '120'
+
+        # Disconnect idle client connections after 30 seconds to prevent resource hogging
+        # Lower than server timeout to aggressively reclaim client slots
+        client_idle_timeout: '30'
+
+        # Maximum time (seconds) client waits for server connection from pool before timeout
+        # 300s = 5 minutes; prevents indefinite waiting during high load
+        query_wait_timeout: '300'
+      databases:
+        postgres:
+          # Small pool for admin/maintenance tasks; not for application workload
+          pool_size: 100
+
+          # System database name
+          dbname: 'postgres'
+
+          # Reserve connections for emergency administrative access
+          reserve_pool: 10

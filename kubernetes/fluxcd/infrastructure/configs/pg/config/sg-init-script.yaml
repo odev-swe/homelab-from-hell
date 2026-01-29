@@ -1,0 +1,13 @@
+apiVersion: stackgres.io/v1
+kind: SGScript
+metadata:
+  name: create-db-script
+  namespace: tsdb-poc
+spec:
+  managedVersions: true
+  continueOnError: false
+  scripts:
+  - name: create insight and market-risk database
+    script: |
+      CREATE DATABASE insight WITH OWNER postgres;
+      CREATE DATABASE "market-risk" WITH OWNER postgres;

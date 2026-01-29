@@ -1,0 +1,19 @@
+apiVersion: stackgres.io/v1beta1
+kind: SGObjectStorage
+metadata:
+  name: insight-tsdb-object-storage
+  namespace: tsdb-poc
+spec:
+  type: s3
+  s3:
+    bucket: insight-tsdb-dev-backup-s3
+    region: ap-southeast-1
+    awsCredentials:
+      useIAMRole: true
+      secretKeySelectors:
+          accessKeyId:
+            name: placeholder
+            key: placeholder
+          secretAccessKey:
+            name: placeholder
+            key: placeholder
