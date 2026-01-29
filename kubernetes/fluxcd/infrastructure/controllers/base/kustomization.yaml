@@ -6,7 +6,7 @@ resources:
   - arc.yaml
   - blessed.yaml
   - cloudflared.yaml
-  - efs-provisioner.yaml
+  # - efs-provisioner.yaml
   - longhorn.yaml
   # - vault.yaml
   # - vault-operator.yaml
