@@ -20,7 +20,7 @@ spec:
       version: '1.11'
     - name: 'pgcrypto'
       version: '1.4'
-  instances: 1
+  instances: 3
   sgInstanceProfile: 'size-m'
   pods:
     persistentVolume:

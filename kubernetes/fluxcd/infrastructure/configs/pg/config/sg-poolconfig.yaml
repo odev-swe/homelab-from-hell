@@ -49,3 +49,14 @@ spec:
 
           # Reserve connections for emergency administrative access
           reserve_pool: 10
+
+        blessedxi:
+          # Pool size for application database 'blessedxi'
+          pool_size: 300
+
+          # Application database name
+          dbname: 'blessedxi'
+
+          # Reserve connections for emergency administrative access
+          reserve_pool: 20
+        
