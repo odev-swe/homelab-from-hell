@@ -2,15 +2,12 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  name: vault-gateway
-  namespace: hashicorp-vault
+  name: all-in-one-gateway
+  namespace: kube-system
   annotations:
     cert-manager.io/cluster-issuer: cloudflare-dns
 spec:
   gatewayClassName: cilium
-  addresses:
-    - type: IPAddress
-      value: 192.168.100.200
   listeners:
     - name: https
       port: 443
@@ -18,7 +15,7 @@ spec:
       hostname: vault.porkbunlab.com
       allowedRoutes:
         namespaces:
-          from: Same
+          from: All
       tls:
         certificateRefs:
           - group: ""
@@ -33,8 +30,8 @@ metadata:
   namespace: hashicorp-vault
 spec:
   parentRefs:
-    - name: vault-gateway
-      namespace: hashicorp-vault
+    - name: all-in-one-gateway
+      namespace: kube-system
   hostnames:
     - vault.porkbunlab.com
   rules:
@@ -42,12 +39,6 @@ spec:
         - path:
             type: PathPrefix
             value: /
-      filters:
-        - type: URLRewrite
-          urlRewrite:
-            path:
-              type: ReplaceFullPath
-              replaceFullPath: /ui
       backendRefs:
         - name: hashicorp-vault
           port: 8200
